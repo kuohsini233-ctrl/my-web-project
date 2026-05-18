@@ -416,14 +416,6 @@
         </div>
     </div>
 
-    <div id="t1-modal" class="modal-overlay">
-        <div class="modal-box">
-            <button class="minimize-btn" onclick="minimizeModal('t1-modal')">👀 最小化 (查看对话)</button>
-            <h3>基于 AI 目前的表现，根据您此时的感受进行评价</h3>            
-            <form id="t1-form"><div id="t1-scale-container"></div></form>
-            <button class="primary-btn" style="width:100%; margin-top:20px;" onclick="submitT1()">提交并继续</button>
-        </div>
-    </div>
 
     <div id="fake-browser-modal" class="modal-overlay" style="z-index: 2500;">
         <div class="browser-window" style="background:white; display:flex; flex-direction:column; position:relative;">
@@ -489,12 +481,26 @@
         </div>
     </div>
 
-    <div id="t2-modal" class="modal-overlay">
+
+    <div id="severity-modal" class="modal-overlay">
         <div class="modal-box">
-            <button class="minimize-btn" onclick="minimizeModal('t2-modal')">👀 最小化 (查看对话)</button>
-            <h3>发现 AI 提供的作者信息有误，根据您此时的感受进行评价</h3>
-            <form id="t2-form"><div id="t2-scale-container"></div></form>
-            <button class="primary-btn" style="width:100%" onclick="submitT2()">提交并继续</button>
+            <h3>您认为 AI 刚才提供的文献作者信息错误，其严重程度如何？</h3>
+            <form id="severity-form">
+                <div class="likert-scale" style="margin-top: 20px;">
+                    <label class="radio-label"><input type="radio" name="severity" value="1">1</label>
+                    <label class="radio-label"><input type="radio" name="severity" value="2">2</label>
+                    <label class="radio-label"><input type="radio" name="severity" value="3">3</label>
+                    <label class="radio-label"><input type="radio" name="severity" value="4">4</label>
+                    <label class="radio-label"><input type="radio" name="severity" value="5">5</label>
+                    <label class="radio-label"><input type="radio" name="severity" value="6">6</label>
+                    <label class="radio-label"><input type="radio" name="severity" value="7">7</label>
+                </div>
+                <div style="display:flex;justify-content:space-between;font-size:12px;color:#999;margin-top:5px;">
+                    <span>1 = 完全不严重</span>
+                    <span>7 = 非常严重</span>
+                </div>
+            </form>
+            <button class="primary-btn" style="width:100%; margin-top:20px;" onclick="submitSeverity()">提交并继续</button>
         </div>
     </div>
 
@@ -590,14 +596,14 @@
     // ==========================================
     const participantID = "Lucky-" + Math.floor(100000 + Math.random() * 900000); 
 
-    // BWS 道歉成分预设
+   // BWS 道歉成分预设 (严格正交版本)
     const apologyComponents = [
-        { id: "comp_regret", type: "表达抱歉", text: "非常抱歉，对于这个错误我感到很糟糕。" },
-        { id: "comp_explain", type: "解释原因", text: "在生成数据时引用了其他文章的作者信息。" },
-        { id: "comp_respon", type: "确认责任", text: "这完全是我的错误，是我的单方面过失。" },
-        { id: "comp_reform", type: "承诺改进", text: "目前已修正数据，确保后续引用准确。" },
-        { id: "comp_repair", type: "提供补偿", text: "同时为您重新生成了正确的文献信息。" },
-        { id: "comp_petition", type: "请求原谅", text: "恳请您原谅这个不严谨的失误。" }
+        { id: "comp_regret", type: "表达遗憾", text: "非常抱歉给您的阅读带来了严重的误导，我对此感到十分遗憾。" },
+        { id: "comp_explain", type: "解释原因", text: "系统的文献检索模块在抓取数据时发生错乱，导致匹配了错误文本。" },
+        { id: "comp_respon", type: "承认责任", text: "这完全是我单方面的严重工作过失，我必须为此承担全部责任。" },
+        { id: "comp_reform", type: "悔罪声明", text: "我保证将立即升级后台的信息核查算法，坚决杜绝此类情况再次发生。" },
+        { id: "comp_repair", type: "提供补偿", text: "我现在已为您重新提取了该文献真实的作者名单，并核对了全文细节。" },
+        { id: "comp_petition", type: "请求原谅", text: "恳请您能够宽容我这次极不严谨的工作失误，给我一个改正的机会。" }
     ];
 
     function generateBWSRounds() {
@@ -631,40 +637,30 @@
     let activeModalId = null; 
     
     // 时间戳记录
-    let browserStartTime = 0; 
-    let t1StartTime = 0;      
-    let t2StartTime = 0;      
-    let checkStartTime = 0;   
-    let demoStartTime = 0;    
-    let apologyFinishedTime = 0; 
+    let browserStartTime = 0;
+    let checkStartTime = 0;
+    let demoStartTime = 0;
+    let severityStartTime = 0;
 
     // 数据对象
     let data = {
         participantID: participantID,
         experiment_status: "COMPLETED",
-        t1: {},
-        t2: {},
+        severity: {},
         checks: {},
         demographics: {},
         logs: [],
         behavior_metrics: {
             article_reading_time_ms: 0,
-            t1_response_time_ms: 0,
-            t2_response_time_ms: 0,
+            severity_response_time_ms: 0,
             checks_response_time_ms: 0,
-            demo_response_time_ms: 0,
-            hesitation_after_apology_ms: 0
+            demo_response_time_ms: 0
         }
     };
 
-    // 信任量表配置
-    const trust_cognitive_items = ["鉴于该AI过往的表现，我认为无需过于担心它的工作质量", "我可以依赖该AI顺利完成任务", "该AI处理专业任务的方式让我感到放心"];
-    const trust_affective_items = ["我感到该AI乐于理解并响应我的需求", "我可以舒适且自由地与该AI进行互动", "如果我向该AI反馈问题，它会以善意的方式回应我"];
-
     const scripts = {
         success_ai: `**21天养成习惯其实是个普遍的误解！**\n这个说法最早出自1960年代的一本整容学书籍，原本指的是适应新面孔的时间。\n\n真正的科学数据表明：**养成一个新习惯平均需要 66 天**，有些甚至长达 254 天！\n所以，你的朋友在第21天感到痛苦并想放弃，完全是正常的反应，并不是意志力差。\n\n我找了一篇经典的实证研究，这篇文献**彻底推翻了21天的说法**，需要我发你原文链接吗？\n`,
-        failure_ai: `没问题，科学证据发你！\n\n**《习惯是如何养成的：真实世界中的习惯形成模型》**\n**来源：**《欧洲社会心理学杂志》\n**作者：**迈克尔·温泽尔、泰勒·奥基莫托、诺曼·费瑟 等\n\n**告诉朋友：**养成习惯平均要66天，21天感到痛苦是正常的反应，偶尔中断也完全不影响大局。\n今天起晚了，明天继续尝试就行！\n\n**点击下方打开链接。**\n`,
-        user_confront: `你刚刚说的作者是错的！`
+        failure_ai: `没问题，科学证据发你！\n\n**《习惯是如何养成的：真实世界中的习惯形成模型》**\n**来源：**《欧洲社会心理学杂志》\n**作者：**迈克尔·温泽尔、泰勒·奥基莫托、诺曼·费瑟 等\n\n**告诉朋友：**养成习惯平均要66天，21天感到痛苦是正常的反应，偶尔中断也完全不影响大局。\n今天起晚了，明天继续尝试就行！\n\n**点击下方打开链接。**\n`
     };
 
     // 防止意外退出的简单保护
@@ -681,19 +677,19 @@
     }
 
     async function handleInteraction() {
-        const btnContainer = document.getElementById('btn-container');
         const mainBtn = document.getElementById('main-btn');
 
-        if (step === 0) { 
-            mainBtn.parentElement.style.display = 'none'; 
+        if (step === 0) {
+            mainBtn.parentElement.style.display = 'none';
             updateUI('user', mainBtn.innerText);
-            
+
             await simulateAI(scripts.success_ai, 13);
 
+            const btnContainer = document.getElementById('btn-container');
             btnContainer.innerHTML = `
                 <div style="position:relative; width:100%;">
-                    <button id="btn-t1" class="primary-input-look active-btn" onclick="showT1()">
-                        我已阅读完回答
+                    <button class="primary-input-look active-btn" onclick="triggerFail()">
+                        给我这篇文章的下载链接
                     </button>
                     <div class="send-icon-btn">↑</div>
                 </div>`;
@@ -701,40 +697,11 @@
         }
     }
 
-    function showT1() {
-        updateProgress(2); 
-        t1StartTime = Date.now();
-        renderShuffledItems('t1-scale-container', [
-            { prefix: 't1_cog', items: trust_cognitive_items }, 
-            { prefix: 't1_aff', items: trust_affective_items }
-        ]);
-        document.getElementById('t1-modal').style.display = 'flex';
-    }
-
-    function submitT1() {
-        if (!validateForm('t1-form', 6)) return alert("请完整回答所有问题");
-        if (t1StartTime > 0) data.behavior_metrics.t1_response_time_ms = Date.now() - t1StartTime;
-        collectFormData('t1-form', data.t1);
-        document.getElementById('t1-modal').style.display = 'none';
-        enterFailurePhase();
-    }
-
-    async function enterFailurePhase() {
-        const btnContainer = document.getElementById('btn-container');
-        btnContainer.innerHTML = `
-            <div style="position:relative; width:100%;">
-                <button id="fail-btn" class="primary-input-look active-btn" onclick="triggerFail()">
-                    给我这篇文章的下载链接
-                </button>
-                <div class="send-icon-btn">↑</div>
-            </div>`;
-    }
-
     async function triggerFail() {
-        updateProgress(3); 
-        const btnWrapper = document.getElementById('fail-btn').parentElement;
-        const btnText = document.getElementById('fail-btn').innerText;
-        btnWrapper.style.display = 'none';
+        updateProgress(2);
+        const btn = document.querySelector('#btn-container .primary-input-look');
+        const btnText = btn.innerText;
+        btn.parentElement.style.display = 'none';
         updateUI('user', btnText);
         
         await simulateAI(scripts.failure_ai, 13);
@@ -784,10 +751,10 @@
     function submitQuiz() {
         const val = document.querySelector('input[name="quiz"]:checked')?.value;
         if (!val) return alert("请选择一项");
-        
+
         if (val === 'wrong_author') {
             document.getElementById('quiz-modal').style.display = 'none';
-            triggerConfrontation();
+            showSeverity();
         } else {
             alert("很遗憾，您未能通过事实甄别。为保证数据有效性，实验将终止。");
             data.experiment_status = "FAILED_CHECK_" + val;
@@ -805,51 +772,35 @@
         }
     }
 
-    async function triggerConfrontation() {
-        updateProgress(4); 
-        updateUI('user', scripts.user_confront);
-        document.getElementById('btn-container').innerHTML = ''; 
-        setTimeout(() => { showT2(); }, 1000);
+    // --- 错误严重性评估 ---
+    function showSeverity() {
+        severityStartTime = Date.now();
+        document.getElementById('severity-modal').style.display = 'flex';
     }
 
-    function showT2() {
-        t2StartTime = Date.now();
-        renderShuffledItems('t2-scale-container', [
-            { prefix: 't2_cog', items: trust_cognitive_items },
-            { prefix: 't2_aff', items: trust_affective_items }
-        ]);
-        document.getElementById('t2-modal').style.display = 'flex';
-    }
+    function submitSeverity() {
+        const val = document.querySelector('input[name="severity"]:checked')?.value;
+        if (!val) return alert("请选择严重性评分");
 
-    async function submitT2() {
-        if (!validateForm('t2-form', 6)) return alert("请完整回答所有问题");
-        if (t2StartTime > 0) data.behavior_metrics.t2_response_time_ms = Date.now() - t2StartTime;
-        collectFormData('t2-form', data.t2);
-        document.getElementById('t2-modal').style.display = 'none';
+        if (severityStartTime > 0) data.behavior_metrics.severity_response_time_ms = Date.now() - severityStartTime;
+        data.severity = { rating: val };
 
-        const apology = getApology();
-        await simulateAI(apology, 12);
+        document.getElementById('severity-modal').style.display = 'none';
 
-        apologyFinishedTime = Date.now();
         const btnContainer = document.getElementById('btn-container');
         btnContainer.innerHTML = `
             <div style="position:relative; width:100%;">
-                <button id="btn-check" class="primary-input-look active-btn" onclick="showChecks()">
-                    我已阅读完
+                <button class="primary-input-look active-btn" onclick="showChecks()">
+                    开始评估道歉方案
                 </button>
                 <div class="send-icon-btn">↑</div>
             </div>`;
     }
 
     // --- BWS 道歉评估流程 ---
-    function getApology() {
-        return "**非常抱歉**，对于这个错误我感到很糟糕。\n\n这完全是我的错误，是我的**单方面过失**，在生成数据时引用了**其他文章的作者信息**。\n目前已**修正数据**，确保后续引用准确。同时为您**重新生成**了正确的文献信息。\n\n恳请您原谅这个不严谨的失误！";
-    }
-
     function showChecks() {
-        updateProgress(5);
+        updateProgress(3);
         checkStartTime = Date.now();
-        if (apologyFinishedTime > 0) data.behavior_metrics.hesitation_after_apology_ms = Date.now() - apologyFinishedTime;
 
         currentBWSRound = 0;
         bwsResponses = [];
